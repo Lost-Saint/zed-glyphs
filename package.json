@@ -1,25 +1,25 @@
 {
-  "name": "zed-glyphs",
-  "version": "0.1.0",
-  "description": "Symbols file and folder icons for Zed, with light and dark variants.",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "build": "bun src/build.ts",
-    "build:check": "bun src/build.ts --check",
-    "update:icons": "bun src/build.ts --update",
-    "test": "bun test",
-    "check": "biome check .",
-    "format": "biome format --write .",
-    "format:check": "biome format .",
-    "typecheck": "tsc --noEmit"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.5.14",
-    "@types/bun": "latest",
-    "@types/node": "^26.6.1",
-    "ajv": "^8.20.0",
-    "simple-git": "^3.36.0",
-    "typescript": "^7.0.0"
-  }
+	"name": "zed-glyphs",
+	"version": "0.1.0",
+	"description": "Symbols file and folder icons for Zed, with light and dark variants.",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "bun src/generate-icon-theme.ts",
+		"build:check": "bun src/generate-icon-theme.ts --check",
+		"update:icons": "bun src/generate-icon-theme.ts --update",
+		"test": "bun test",
+		"check": "biome check .",
+		"format": "biome format --write .",
+		"format:check": "biome format .",
+		"typecheck": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.14",
+		"@types/bun": "latest",
+		"@types/node": "^26.6.1",
+		"ajv": "^8.20.0",
+		"simple-git": "^3.36.0",
+		"typescript": "^7.0.0"
+	}
 }
