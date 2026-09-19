@@ -1,7 +1,8 @@
 {
 	"$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
 	"files": {
-		"ignoreUnknown": false
+		"ignoreUnknown": false,
+		"includes": ["**", "!!icon_themes", "!!icons", "!!schemas", "!!.cache"]
 	},
 	"formatter": {
 		"enabled": true,
@@ -12,7 +13,7 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true
+			"preset": "recommended"
 		}
 	},
 	"assist": {

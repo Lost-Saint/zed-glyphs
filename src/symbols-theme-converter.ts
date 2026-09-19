@@ -1,5 +1,5 @@
-import type { IconTheme, IconThemeFamily } from "./types/zed-icon-theme";
 import type { SymbolsTheme } from "./types/symbols-icon-theme";
+import type { IconTheme, IconThemeFamily } from "./types/zed-icon-theme";
 
 // Zed matches case sensitively. Preserve exact upstream names and add common
 // casing variants without overwriting any explicit upstream association.
