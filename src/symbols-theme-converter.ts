@@ -1,8 +1,11 @@
+import path from "node:path";
 import type { SymbolsTheme } from "./types/symbols-icon-theme";
 import type { IconTheme, IconThemeFamily } from "./types/zed-icon-theme";
 
-// Zed matches case sensitively. Preserve exact upstream names and add common
-// casing variants without overwriting any explicit upstream association.
+// Zed matches case sensitively. Preserve exact upstream names and add the
+// common casing variants without overwriting any explicit upstream association.
+// Arbitrary mixed case (e.g. `cArGo.toml`) is intentionally not enumerated:
+// the combinations grow exponentially and would bloat the generated theme.
 function addCaseAliases(associations: Record<string, string> = {}) {
 	const aliases: Record<string, string> = Object.create(null);
 	for (const [name, iconId] of Object.entries(associations)) {
@@ -40,11 +43,23 @@ export function createZedIconThemeFamily(
 			const lessIconDefinition = iconDefinitions[languageIds.less];
 			if (lessIconDefinition) iconDefinitions.less = lessIconDefinition;
 		}
+		// `default` is Zed's reserved fallback key, assigned below. An upstream
+		// definition with that ID could not be represented, so fail loudly.
+		if (Object.hasOwn(iconDefinitions, "default")) {
+			throw new Error('Reserved icon ID "default" collides with the fallback icon');
+		}
 		const resolveIconPath = (iconId: string) => {
 			const iconDefinition = iconDefinitions[iconId];
 			if (!iconDefinition) throw new Error(`Missing upstream icon definition: ${iconId}`);
 			const iconPath = iconDefinition.iconPath;
-			if (!/^\.\/icons\/(?:[\w-]+\/)*[\w-]+\.svg$/.test(iconPath)) {
+			// Keep artwork inside the bundled SVG tree. Normalize first so a path
+			// like `./icons/../outside.svg` cannot slip past the prefix check.
+			const normalizedPath = path.posix.normalize(iconPath);
+			if (
+				!normalizedPath.startsWith("icons/") ||
+				!normalizedPath.endsWith(".svg") ||
+				normalizedPath.includes("\u0000")
+			) {
 				throw new Error(`Unsupported icon path: ${iconPath}`);
 			}
 			return iconPath;

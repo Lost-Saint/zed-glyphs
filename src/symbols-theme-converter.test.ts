@@ -97,3 +97,22 @@ test("case aliases preserve explicit mappings and special object keys", () => {
 	expect(fileStemEntries.get("constructor")).toBe("code");
 	expect(fileStemEntries.get("__proto__")).toBe("git");
 });
+
+test("rejects an upstream definition that collides with the fallback icon", () => {
+	const symbolsTheme = createSymbolsThemeFixture();
+	symbolsTheme.iconDefinitions.default = { iconPath: "./icons/files/document.svg" };
+	expect(() => createZedIconThemeFamily(symbolsTheme, "Maintainer")).toThrow(
+		'Reserved icon ID "default"',
+	);
+});
+
+test("accepts contained paths and rejects escapes outside the icon tree", () => {
+	const symbolsTheme = createSymbolsThemeFixture();
+	symbolsTheme.iconDefinitions.dotted = { iconPath: "./icons/files/my.icon+2.svg" };
+	const zedTheme = createZedIconThemeFamily(symbolsTheme, "Maintainer").themes[0];
+	expect(zedTheme?.file_icons.dotted?.path).toBe("./icons/files/my.icon+2.svg");
+	symbolsTheme.iconDefinitions.dotted = { iconPath: "./icons/../secret.svg" };
+	expect(() => createZedIconThemeFamily(symbolsTheme, "Maintainer")).toThrow(
+		"Unsupported icon path",
+	);
+});

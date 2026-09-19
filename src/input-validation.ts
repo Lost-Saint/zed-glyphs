@@ -63,6 +63,40 @@ function createSchemaParser<T>(inputName: string, schema: Schema): (input: unkno
 	};
 }
 
+const textDecoder = new TextDecoder();
+
+// Upstream icons are plain SVG documents, with or without an XML prolog.
+export function isSvgDocument(fileBytes: Uint8Array): boolean {
+	const text = textDecoder
+		.decode(fileBytes)
+		.replace(/^\uFEFF/, "")
+		.trimStart();
+	const withoutProlog = text.startsWith("<?xml") ? text.replace(/^<\?xml[^>]*\?>\s*/, "") : text;
+	return /^<svg[\s>]/.test(withoutProlog);
+}
+
+// The project license must reproduce every paragraph of the upstream license
+// so its copyright and permission notice survive verbatim.
+export function assertUpstreamLicensePreserved(
+	upstreamLicense: string,
+	projectLicense: string,
+): void {
+	const normalize = (text: string) => text.replace(/\r\n/g, "\n");
+	const projectText = normalize(projectLicense);
+	for (const paragraph of normalize(upstreamLicense)
+		.trim()
+		.split(/\n\s*\n/)
+		.map((entry) => entry.trim())
+		.filter((entry) => entry.length > 0)) {
+		if (!projectText.includes(paragraph)) {
+			const excerpt = paragraph.slice(0, 120);
+			throw new Error(
+				`LICENSE.md must preserve the upstream notice; missing paragraph: ${excerpt}`,
+			);
+		}
+	}
+}
+
 export const parseUpstreamSource = createSchemaParser<UpstreamSourceConfig>("upstream.json", {
 	type: "object",
 	required: ["repository", "commit"],
@@ -78,11 +112,21 @@ export const parseUpstreamSource = createSchemaParser<UpstreamSourceConfig>("ups
 export const parseSymbolsTheme = createSchemaParser<SymbolsTheme>("Symbols theme", {
 	type: "object",
 	required: ["iconDefinitions", "file", "folder"],
+	additionalProperties: false,
 	properties: {
+		$schema: { type: "string" },
+		fonts: { type: "array" },
+		hidesExplorerArrows: { type: "boolean" },
+		showLanguageModeIcons: { type: "boolean" },
 		...themeVariantSchemaProperties,
-		light: { type: "object", properties: themeVariantSchemaProperties },
+		light: {
+			type: "object",
+			additionalProperties: false,
+			properties: themeVariantSchemaProperties,
+		},
 		highContrast: {
 			type: "object",
+			additionalProperties: false,
 			properties: themeVariantSchemaProperties,
 		},
 	},

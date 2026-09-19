@@ -1,5 +1,11 @@
 import { expect, test } from "bun:test";
-import { parseExtensionManifest, parseSymbolsTheme, parseUpstreamSource } from "./input-validation";
+import {
+	assertUpstreamLicensePreserved,
+	isSvgDocument,
+	parseExtensionManifest,
+	parseSymbolsTheme,
+	parseUpstreamSource,
+} from "./input-validation";
 
 test("rejects malformed upstream metadata before invoking Git", () => {
 	const upstreamSource = {
@@ -53,4 +59,46 @@ test("validates the real extension manifest and rejects missing metadata", async
 	expect(() => parseExtensionManifest({ ...manifest, id: "glyph" })).toThrow(
 		"Invalid extension.toml",
 	);
+});
+
+test("rejects unknown theme keys but keeps per-variant image definitions", () => {
+	const symbolsTheme = {
+		file: "file",
+		folder: "folder",
+		iconDefinitions: {
+			file: { iconPath: "./icons/files/file.svg" },
+			folder: { iconPath: "./icons/folders/folder.svg" },
+		},
+	};
+	expect(() => parseSymbolsTheme({ ...symbolsTheme, fileExtenions: { md: "file" } })).toThrow(
+		"Invalid Symbols theme",
+	);
+	expect(() =>
+		parseSymbolsTheme({ ...symbolsTheme, light: { folderMapping: { src: "folder" } } }),
+	).toThrow("Invalid Symbols theme");
+	const withLightIcons = {
+		...symbolsTheme,
+		light: { iconDefinitions: { file: { iconPath: "./icons/files/file-light.svg" } } },
+	};
+	expect(parseSymbolsTheme(withLightIcons)).toEqual(withLightIcons);
+});
+
+test("detects SVG documents with or without an XML prolog", () => {
+	const encode = (text: string) => new TextEncoder().encode(text);
+	expect(isSvgDocument(encode('<svg width="24"></svg>'))).toBe(true);
+	expect(isSvgDocument(encode('<?xml version="1.0"?>\n<svg></svg>'))).toBe(true);
+	expect(isSvgDocument(encode(`${String.fromCharCode(0xfeff)}<svg></svg>`))).toBe(true);
+	expect(isSvgDocument(encode("<html><svg></svg></html>"))).toBe(false);
+	expect(isSvgDocument(encode("not an image <svg>"))).toBe(false);
+	expect(isSvgDocument(encode("<svgfoo>"))).toBe(false);
+});
+
+test("requires every upstream license paragraph in the project license", () => {
+	const upstreamLicense = "MIT License\n\nCopyright (c) Example\n\nPermission granted.";
+	expect(() => assertUpstreamLicensePreserved(upstreamLicense, "A different license")).toThrow(
+		"must preserve the upstream notice",
+	);
+	expect(
+		assertUpstreamLicensePreserved(upstreamLicense, `My license\n\n${upstreamLicense}\n`),
+	).toBeUndefined();
 });

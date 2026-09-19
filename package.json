@@ -16,7 +16,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.14",
-		"@types/bun": "latest",
+		"@types/bun": "^1.4.2",
 		"@types/node": "^26.6.1",
 		"ajv": "^8.20.0",
 		"simple-git": "^3.36.0",

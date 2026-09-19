@@ -1,8 +1,14 @@
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { Ajv } from "ajv";
 import { simpleGit } from "simple-git";
-import { parseExtensionManifest, parseSymbolsTheme, parseUpstreamSource } from "./input-validation";
+import {
+	assertUpstreamLicensePreserved,
+	isSvgDocument,
+	parseExtensionManifest,
+	parseSymbolsTheme,
+	parseUpstreamSource,
+} from "./input-validation";
 import { createZedIconThemeFamily } from "./symbols-theme-converter";
 
 const projectRoot = path.resolve(import.meta.dirname, "..");
@@ -62,28 +68,25 @@ const generatedFiles = new Map<string, Uint8Array>();
 const encodeUtf8 = (text: string) => new TextEncoder().encode(text);
 generatedFiles.set(
 	"icon_themes/glyph.json",
-	encodeUtf8(`${JSON.stringify(zedIconThemeFamily, null, 2)}\n`),
+	encodeUtf8(`${JSON.stringify(zedIconThemeFamily, null, "\t")}\n`),
 );
 const upstreamLicense = await Bun.file(path.join(symbolsCacheDirectory, "LICENSE")).text();
-const projectLicense = await Bun.file(path.join(projectRoot, "LICENSE")).text();
-// Keep upstream's copyright and permission notice in the combined license.
-for (const paragraph of upstreamLicense
-	.trim()
-	.split(/\r?\n\r?\n/)
-	.slice(1)) {
-	if (!projectLicense.replace(/\r\n/g, "\n").includes(paragraph.replace(/\r\n/g, "\n"))) {
-		throw new Error(
-			"LICENSE must preserve the upstream Symbols copyright and permission notice",
-		);
-	}
-}
+const projectLicense = await Bun.file(path.join(projectRoot, "LICENSE.md")).text();
+// Keep upstream's copyright and permission notice in the project license.
+assertUpstreamLicensePreserved(upstreamLicense, projectLicense);
+const symbolsIconsRoot = await realpath(path.join(symbolsCacheDirectory, "src", "icons"));
 for (const zedTheme of zedIconThemeFamily.themes) {
 	for (const { path: iconPath } of Object.values(zedTheme.file_icons)) {
 		const relativePath = iconPath.replace(/^\.\//, "");
 		if (generatedFiles.has(relativePath)) continue;
-		const iconBytes = await readFile(path.join(symbolsCacheDirectory, "src", iconPath));
-		if (!new TextDecoder().decode(iconBytes).includes("<svg"))
-			throw new Error(`Invalid SVG: ${iconPath}`);
+		// Resolve symlinks and confirm the artwork lives in the bundled tree.
+		const realIconPath = await realpath(path.join(symbolsCacheDirectory, "src", iconPath));
+		const insideIconsTree =
+			realIconPath === symbolsIconsRoot ||
+			realIconPath.startsWith(`${symbolsIconsRoot}${path.sep}`);
+		if (!insideIconsTree) throw new Error(`Icon escapes the bundled tree: ${iconPath}`);
+		const iconBytes = await readFile(realIconPath);
+		if (!isSvgDocument(iconBytes)) throw new Error(`Invalid SVG: ${iconPath}`);
 		generatedFiles.set(relativePath, iconBytes);
 	}
 }
