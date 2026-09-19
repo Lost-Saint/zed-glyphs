@@ -1,9 +1,26 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
-  "files": {
-    "includes": ["**", "!!icon_themes", "!!icons", "!!schemas", "!!.cache"]
-  },
-  "formatter": {
-    "indentStyle": "space"
-  }
+	"$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+	"files": {
+		"ignoreUnknown": false
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"indentWidth": 4,
+		"lineWidth": 100
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true
+		}
+	},
+	"assist": {
+		"enabled": true,
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	}
 }
