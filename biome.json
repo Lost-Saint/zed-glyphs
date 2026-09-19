@@ -3,5 +3,7 @@
   "files": {
     "includes": ["**", "!!icon_themes", "!!icons", "!!schemas", "!!.cache"]
   },
-  "formatter": { "indentStyle": "space" }
+  "formatter": {
+    "indentStyle": "space"
+  }
 }
