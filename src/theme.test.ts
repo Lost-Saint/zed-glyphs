@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { convertTheme } from "./theme";
+import { convertSymbolsTheme } from "./theme";
 import type { SymbolsTheme } from "./types/vscode-icon-theme";
 
 function fixture(): SymbolsTheme {
@@ -21,7 +21,7 @@ function fixture(): SymbolsTheme {
 }
 
 test("preserves IDs, mixed-case filenames, compound suffixes and default", () => {
-  const theme = convertTheme(fixture(), "Maintainer").themes[0];
+  const theme = convertSymbolsTheme(fixture(), "Maintainer").themes[0];
   if (!theme) throw new Error("Expected a dark theme");
   expect(theme.file_stems["Cargo.toml"]).toBe("code");
   expect(theme.file_stems["cargo.toml"]).toBe("code");
@@ -39,7 +39,7 @@ test("light overrides inherit other mappings without altering dark icons", () =>
   source.light = {
     iconDefinitions: { code: { iconPath: "./icons/files/code-light.svg" } },
   };
-  const [dark, light] = convertTheme(source, "Maintainer").themes;
+  const [dark, light] = convertSymbolsTheme(source, "Maintainer").themes;
   expect(dark?.file_icons.code?.path).toBe("./icons/files/code.svg");
   expect(light?.file_icons.code?.path).toBe("./icons/files/code-light.svg");
   expect(light?.file_stems["Cargo.toml"]).toBe("code");
@@ -50,19 +50,52 @@ test("repairs upstream LESS association from its language mapping", () => {
   source.fileExtensions = { less: "less" };
   source.languageIds = { less: "code" };
   expect(
-    convertTheme(source, "Maintainer").themes[0]?.file_icons.less?.path,
+    convertSymbolsTheme(source, "Maintainer").themes[0]?.file_icons.less?.path,
   ).toBe("./icons/files/code.svg");
 });
 
 test("rejects missing definitions and paths outside bundled icons", () => {
   const source = fixture();
   source.fileExtensions = { broken: "missing" };
-  expect(() => convertTheme(source, "Maintainer")).toThrow(
+  expect(() => convertSymbolsTheme(source, "Maintainer")).toThrow(
     "Missing upstream icon definition",
   );
   source.fileExtensions = {};
   source.iconDefinitions.document = { iconPath: "../secret.svg" };
-  expect(() => convertTheme(source, "Maintainer")).toThrow(
+  expect(() => convertSymbolsTheme(source, "Maintainer")).toThrow(
     "Unsupported icon path",
   );
+});
+
+test("expanded-only folder mappings use the default collapsed icon", () => {
+  const source = fixture();
+  source.folderNamesExpanded = { special: "open" };
+  const theme = convertSymbolsTheme(source, "Maintainer").themes[0];
+  expect(theme?.named_directory_icons.special).toEqual({
+    collapsed: "./icons/folders/folder.svg",
+    expanded: "./icons/folders/folder-open.svg",
+  });
+});
+
+test("light language overrides preserve the base LESS fallback", () => {
+  const source = fixture();
+  source.fileExtensions = { less: "less" };
+  source.languageIds = { less: "code" };
+  source.light = { languageIds: { javascript: "code" } };
+  expect(
+    convertSymbolsTheme(source, "Maintainer").themes[1]?.file_icons.less?.path,
+  ).toBe("./icons/files/code.svg");
+});
+
+test("case aliases preserve explicit mappings and special object keys", () => {
+  const source = fixture();
+  source.fileNames = JSON.parse(
+    '{"README":"code","readme":"git","constructor":"code","__proto__":"git"}',
+  );
+  const theme = convertSymbolsTheme(source, "Maintainer").themes[0];
+  expect(theme?.file_stems.README).toBe("code");
+  expect(theme?.file_stems.readme).toBe("git");
+  const entries = new Map(Object.entries(theme?.file_stems ?? {}));
+  expect(entries.get("constructor")).toBe("code");
+  expect(entries.get("__proto__")).toBe("git");
 });

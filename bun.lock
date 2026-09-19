@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "zed-glyph",
+      "name": "zed-glyphs",
       "devDependencies": {
         "@biomejs/biome": "^2.5.14",
         "@types/bun": "latest",

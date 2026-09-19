@@ -3,8 +3,8 @@ import type { SymbolsTheme } from "./types/vscode-icon-theme";
 
 // Zed matches case sensitively. Preserve exact upstream names and add common
 // casing variants without overwriting any explicit upstream association.
-function associations(source: Record<string, string> = {}) {
-  const result: Record<string, string> = {};
+function expandCaseAliases(source: Record<string, string> = {}) {
+  const result: Record<string, string> = Object.create(null);
   for (const [name, id] of Object.entries(source)) {
     result[name.toLowerCase()] ??= id;
     result[name.toUpperCase()] ??= id;
@@ -12,23 +12,32 @@ function associations(source: Record<string, string> = {}) {
   }
   return Object.fromEntries(
     Object.entries({ ...result, ...source }).sort(([a], [b]) =>
-      a.localeCompare(b, "en"),
+      a < b ? -1 : a > b ? 1 : 0,
     ),
   );
 }
 
-export function convertTheme(source: SymbolsTheme, author: string) {
+export function convertSymbolsTheme(
+  source: SymbolsTheme,
+  author: string,
+  name = "Glyph",
+) {
   const themes = (["dark", "light"] as const).map((appearance) => {
     const theme =
       appearance === "light" ? { ...source, ...source.light } : source;
-    const definitions = { ...source.iconDefinitions, ...theme.iconDefinitions };
+    const definitions = Object.assign(
+      Object.create(null),
+      source.iconDefinitions,
+      theme.iconDefinitions,
+    ) as SymbolsTheme["iconDefinitions"];
+    const languageIds = { ...source.languageIds, ...theme.languageIds };
     // Upstream has a dangling LESS extension ID. Its language mapping
     // supplies the intended artwork. Leave a future dedicated icon intact.
-    if (!definitions.less && theme.languageIds?.less) {
-      const less = definitions[theme.languageIds.less];
+    if (!definitions.less && languageIds.less) {
+      const less = definitions[languageIds.less];
       if (less) definitions.less = less;
     }
-    const iconPath = (id: string) => {
+    const resolveIconPath = (id: string) => {
       const definition = definitions[id];
       if (!definition)
         throw new Error(`Missing upstream icon definition: ${id}`);
@@ -38,57 +47,64 @@ export function convertTheme(source: SymbolsTheme, author: string) {
       }
       return value;
     };
-    const file_icons = Object.fromEntries(
+    const fileIcons = Object.fromEntries(
       Object.keys(definitions)
         .sort()
-        .map((id) => [id, { path: iconPath(id) }]),
+        .map((id) => [id, { path: resolveIconPath(id) }]),
     );
-    file_icons.default = { path: iconPath(theme.file) };
-    const file_stems = associations({
+    fileIcons.default = { path: resolveIconPath(theme.file) };
+    const fileStems = expandCaseAliases({
       ...source.fileNames,
       ...theme.fileNames,
     });
-    const file_suffixes = associations({
+    const fileSuffixes = expandCaseAliases({
       ...source.fileExtensions,
       ...theme.fileExtensions,
     });
     for (const id of [
-      ...Object.values(file_stems),
-      ...Object.values(file_suffixes),
+      ...Object.values(fileStems),
+      ...Object.values(fileSuffixes),
     ])
-      iconPath(id);
-    const folders = associations({
+      resolveIconPath(id);
+    const folders = expandCaseAliases({
       ...source.folderNames,
       ...theme.folderNames,
     });
-    const expanded = associations({
+    const expanded = expandCaseAliases({
       ...source.folderNamesExpanded,
       ...theme.folderNamesExpanded,
     });
     return {
-      name: `Glyph ${appearance === "dark" ? "Dark" : "Light"}`,
+      name: `${name} ${appearance === "dark" ? "Dark" : "Light"}`,
       appearance,
       directory_icons: {
-        collapsed: iconPath(theme.folder),
-        expanded: iconPath(theme.folderExpanded ?? theme.folder),
+        collapsed: resolveIconPath(theme.folder),
+        expanded: resolveIconPath(theme.folderExpanded ?? theme.folder),
       },
       named_directory_icons: Object.fromEntries(
-        Object.entries(folders).map(([name, id]) => [
-          name,
-          {
-            collapsed: iconPath(id),
-            expanded: iconPath(expanded[name] ?? id),
-          },
-        ]),
+        [...new Set([...Object.keys(folders), ...Object.keys(expanded)])]
+          .sort()
+          .map((folderName) => [
+            folderName,
+            {
+              collapsed: resolveIconPath(folders[folderName] ?? theme.folder),
+              expanded: resolveIconPath(
+                expanded[folderName] ??
+                  folders[folderName] ??
+                  theme.folderExpanded ??
+                  theme.folder,
+              ),
+            },
+          ]),
       ),
-      file_stems,
-      file_suffixes,
-      file_icons,
+      file_stems: fileStems,
+      file_suffixes: fileSuffixes,
+      file_icons: fileIcons,
     } satisfies IconTheme;
   });
   return {
     $schema: "https://zed.dev/schema/icon_themes/v0.3.0.json",
-    name: "Glyph",
+    name,
     author,
     themes,
   } satisfies IconThemeFamily;

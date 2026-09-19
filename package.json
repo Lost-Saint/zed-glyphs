@@ -1,7 +1,7 @@
 {
-  "name": "zed-glyph",
+  "name": "zed-glyphs",
   "version": "0.1.0",
-  "description": "A simple file icon theme for Zed.",
+  "description": "Symbols file and folder icons for Zed, with light and dark variants.",
   "private": true,
   "type": "module",
   "scripts": {
